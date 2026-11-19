@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: zfstack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zfstack}
+      POSTGRES_DB: zfstack
+    volumes:
+      - zfstack-db:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5440:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zfstack"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://zfstack:${POSTGRES_PASSWORD:-zfstack}@db:5432/zfstack
+      PORT: 3000
+    ports:
+      - "${ZFSTACK_PORT:-8080}:3000"
+
+volumes:
+  zfstack-db:

@@ -1,0 +1,35 @@
+# Production stack deployed to Arcane by .github/workflows/deploy.yml.
+# The workflow replaces the image tag below with the commit's image.
+# POSTGRES_PASSWORD lives in the Arcane project's .env, never in git.
+name: zfstack
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: zfstack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the project .env}
+      POSTGRES_DB: zfstack
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zfstack"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    image: ghcr.io/edbourque0/zfstack:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://zfstack:${POSTGRES_PASSWORD}@db:5432/zfstack
+      PORT: 3000
+    ports:
+      - "${ZFSTACK_PORT:-8460}:3000"
+
+volumes:
+  db:
