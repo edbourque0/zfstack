@@ -29,6 +29,23 @@ Open http://localhost:8080. Set `ZFSTACK_PORT` to change the port and `POSTGRES_
 
 ZFStack has no login. Keep it on your LAN or put it behind a reverse proxy with single sign-on, such as Pocket ID or Authelia.
 
+## Continuous deployment to Arcane
+
+Every push to `main` runs `.github/workflows/deploy.yml`. It tests, builds the image, pushes it to `ghcr.io/edbourque0/zfstack` (tagged `latest` and `sha-<commit>`), and redeploys the Arcane project with that exact tag. The production stack is `deploy/compose.yml`. Its Postgres password lives only in the Arcane project's `.env`.
+
+Repository settings the workflow reads:
+
+| Kind | Name | Value |
+|---|---|---|
+| Secret | `ARCANE_URL` | Public URL of Arcane, reachable from GitHub runners |
+| Secret | `ARCANE_API_KEY` | An Arcane API key (Settings, API keys) |
+| Secret, optional | `GHCR_PULL_TOKEN` | Only if the image is private: a classic token with `read:packages`. It is added to Arcane if Arcane has no `ghcr.io` credential yet |
+| Variable | `ARCANE_ENV_ID` | Arcane environment id, `0` for the local Docker host |
+| Variable | `ARCANE_PROJECT_ID` | Id of the `zfstack` project in Arcane |
+| Variable, optional | `ZFSTACK_HEALTH_URL` | A public URL of `/api/health` to check after deploy |
+
+Without the secrets, the deploy job is skipped with a warning. Pull requests only test and build.
+
 ## Develop
 
 Requires Node 20 or newer and Docker.

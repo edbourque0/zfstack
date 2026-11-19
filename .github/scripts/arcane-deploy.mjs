@@ -31,14 +31,16 @@ async function api(method, path, body) {
 const json = async (method, path, body) => JSON.parse((await api(method, path, body)) || "{}");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// 1. Pull credential for ghcr.io, so Arcane can pull the private image.
+// 1. Only for a private image: add a ghcr.io pull credential if Arcane has none.
+//    An existing entry is never overwritten, since other projects may rely on it.
 if (REGISTRY_USER && REGISTRY_TOKEN) {
   const list = await json("GET", "/registries?search=ghcr.io&limit=50");
   const existing = (list.data ?? []).find((r) => /(^|\/\/)ghcr\.io/.test(r.url ?? r.host ?? ""));
-  const body = { url: "ghcr.io", username: REGISTRY_USER, token: REGISTRY_TOKEN, enabled: true, description: "GitHub Container Registry (updated by ZFStack deploys)" };
-  if (existing) await api("PATCH", `/registries/${existing.id}`, body);
-  else await api("POST", "/registries", body);
-  console.log(`ghcr.io credential ${existing ? "updated" : "created"} for ${REGISTRY_USER}`);
+  if (existing) console.log("Arcane already has a ghcr.io credential; leaving it unchanged");
+  else {
+    await api("POST", "/registries", { url: "ghcr.io", username: REGISTRY_USER, token: REGISTRY_TOKEN, enabled: true, description: "GitHub Container Registry" });
+    console.log(`ghcr.io credential created for ${REGISTRY_USER}`);
+  }
 }
 
 // 2. Pin the image in the project's compose file.

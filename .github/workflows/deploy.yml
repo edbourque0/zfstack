@@ -74,9 +74,10 @@ jobs:
         id: cfg
         env:
           ARCANE_API_KEY: ${{ secrets.ARCANE_API_KEY }}
+          ARCANE_URL: ${{ secrets.ARCANE_URL }}
         run: |
-          if [ -z "$ARCANE_API_KEY" ] || [ -z "${{ vars.ARCANE_PROJECT_ID }}" ]; then
-            echo "::warning::Skipping deploy: set the ARCANE_API_KEY secret and the ARCANE_PROJECT_ID variable."
+          if [ -z "$ARCANE_API_KEY" ] || [ -z "$ARCANE_URL" ] || [ -z "${{ vars.ARCANE_PROJECT_ID }}" ]; then
+            echo "::warning::Skipping deploy: set the ARCANE_URL and ARCANE_API_KEY secrets and the ARCANE_PROJECT_ID variable."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
@@ -88,14 +89,13 @@ jobs:
       - name: Deploy to Arcane
         if: steps.cfg.outputs.ready == 'true'
         env:
-          ARCANE_URL: ${{ vars.ARCANE_URL }}
+          ARCANE_URL: ${{ secrets.ARCANE_URL }}
           ARCANE_ENV_ID: ${{ vars.ARCANE_ENV_ID }}
           ARCANE_PROJECT_ID: ${{ vars.ARCANE_PROJECT_ID }}
           ARCANE_API_KEY: ${{ secrets.ARCANE_API_KEY }}
           IMAGE: ${{ needs.build.outputs.image }}
           HEALTH_URL: ${{ vars.ZFSTACK_HEALTH_URL }}
-          # A long-lived read:packages token keeps Arcane able to pull later;
-          # without it the job's short-lived token is used for this deploy only.
-          REGISTRY_USER: ${{ secrets.GHCR_PULL_TOKEN && github.repository_owner || github.actor }}
-          REGISTRY_TOKEN: ${{ secrets.GHCR_PULL_TOKEN || secrets.GITHUB_TOKEN }}
+          # Only needed if the GHCR package is private: a long-lived read:packages token.
+          REGISTRY_USER: ${{ github.repository_owner }}
+          REGISTRY_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
         run: node .github/scripts/arcane-deploy.mjs
